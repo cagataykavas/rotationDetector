@@ -11,6 +11,11 @@ The repository is a production-minded repair of a university prototype. The orig
 290-line script is preserved under [`legacy/HW2_monolith.py`](legacy/HW2_monolith.py)
 and is not imported by the application.
 
+![Synthetic grid motion demo](docs/assets/demo-preview.jpg)
+
+_Generated integration scene: opposite rotor directions in cells 1 and 5,
+translation in cell 9, and dense-flow visualization._
+
 ## What it demonstrates
 
 - automatic board quadrilateral detection with explicit full-frame fallback
