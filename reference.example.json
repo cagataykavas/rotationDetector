@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "intervals": [
+    {
+      "interval_index": 0,
+      "cells": [
+        {"cell_id": 1, "moving": true},
+        {"cell_id": 2, "moving": false},
+        {"cell_id": 3, "moving": false},
+        {"cell_id": 4, "moving": false},
+        {"cell_id": 5, "moving": true},
+        {"cell_id": 6, "moving": false},
+        {"cell_id": 7, "moving": false},
+        {"cell_id": 8, "moving": false},
+        {"cell_id": 9, "moving": true}
+      ]
+    }
+  ]
+}

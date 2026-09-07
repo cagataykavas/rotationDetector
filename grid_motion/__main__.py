@@ -1,5 +1,3 @@
-"""Backward-compatible command entry point."""
-
 from grid_motion.cli import main
 
 if __name__ == "__main__":

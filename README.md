@@ -1,171 +1,130 @@
-# Grid Motion & Rotation Analysis with Optical Flow
+# Grid Motion & Rotation Lab
 
-A classical computer-vision project for detecting a drop event and subsequently analysing motion across a **3×3 spatial grid** using dense optical flow.
+[![CI](https://github.com/cagataykavas/rotationDetector/actions/workflows/ci.yml/badge.svg)](https://github.com/cagataykavas/rotationDetector/actions/workflows/ci.yml)
 
-The program rectifies the observed surface with a homography, divides it into labelled cells, estimates motion using Farnebäck optical flow, detects dark rover-like blobs, and can compare the estimated cell activity against optional reference / ground-truth files.
+An explainable optical-flow pipeline for measuring activity in a rectified grid. It
+distinguishes coherent clockwise/counter-clockwise tangential flow from translation,
+aggregates frame decisions into time intervals, and evaluates interval predictions
+against a documented reference contract.
 
-> This repository is an academic computer-vision project and is preserved as a transparent classical-CV implementation rather than presented as a general-purpose production tracker.
+The repository is a production-minded repair of a university prototype. The original
+290-line script is preserved under [`legacy/HW2_monolith.py`](legacy/HW2_monolith.py)
+and is not imported by the application.
 
-## Pipeline overview
+![Synthetic grid motion demo](docs/assets/demo-preview.jpg)
 
-The processing sequence is split into two main stages.
+_Generated integration scene: opposite rotor directions in cells 1 and 5,
+translation in cell 9, and dense-flow visualization._
 
-### 1. Drop-event detection
+## What it demonstrates
 
-The video is first scanned using dense Farnebäck optical flow. Average flow magnitude is monitored using start/end thresholds to determine when a large motion event begins and settles.
+- automatic board quadrilateral detection with explicit full-frame fallback
+- perspective rectification into a configurable canonical grid
+- dense Farneback optical flow and per-cell motion masks
+- radial/tangential vector decomposition for rotation direction
+- configurable cell-ID layouts, including the historical robot mapping
+- interval aggregation, reference scoring, explainable JSON, and annotated video
+- deterministic generated demo, tests, linting, and headless CI
 
-The resulting frame is treated as the reference point for the subsequent motion analysis.
+This is a transparent classical-CV baseline. Flow scores and synthetic observations
+are not claims of real-world model accuracy.
 
-### 2. Grid motion analysis
-
-After a configurable delay, the program:
-
-1. Detects corner candidates using the Harris corner response.
-2. Estimates the four outer corners of the observed surface.
-3. Computes a homography and rectifies the surface to a top-down view.
-4. Divides the rectified image into a 3×3 grid.
-5. Computes dense optical flow between consecutive rectified frames.
-6. Measures optical-flow magnitude independently for each cell.
-7. Marks cells according to detected motion.
-8. Detects dark blobs / rover-like objects using quantisation, morphology and contours.
-9. Optionally overlays reference values loaded from a text file.
-10. Records debug information for analysing threshold behaviour.
-
-## Techniques demonstrated
-
-- OpenCV video processing
-- Dense Farnebäck optical flow
-- Optical-flow magnitude / direction visualisation
-- Event detection from temporal motion
-- Harris corner detection
-- Homography estimation
-- Perspective rectification
-- Spatial grid analysis
-- Morphological image processing
-- Contour-based blob detection
-- Per-cell temporal aggregation
-- Optional ground-truth comparison
-- Matplotlib/OpenCV visualisation
-
-## Repository structure
-
-```text
-rotationDetector/
-├── HW2.py              # Main motion-analysis pipeline
-├── requirements.txt    # Python dependencies
-├── ReadMe.txt           # Original assignment instructions
-└── README.md            # Project documentation
-```
-
-The original assignment expects the video dataset outside the repository under a nested directory structure similar to:
-
-```text
-videolar/
-└── videolar/
-    ├── test1.mp4
-    ├── test2.mp4
-    └── ...
-```
-
-Optional reference files can be placed beside the script:
-
-```text
-referans1.txt
-referans2.txt
-...
-```
-
-## Installation
-
-Python 3 is required.
+## Quick start
 
 ```bash
 python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+
+# Generates a perspective board with two rotors and one translating marker.
+grid-motion demo --output artifacts/demo --frames 48
+
+# Analyze a real grid recording.
+grid-motion analyze --input test1.mp4 --output artifacts/test1
+
+# Compare interval decisions with a labeled reference file.
+grid-motion evaluate \
+  --predictions artifacts/test1/intervals.json \
+  --reference reference.example.json
+
+grid-motion explain-schema
 ```
 
-Activate the environment and install dependencies:
+The historical filename remains a compatibility entry point:
 
 ```bash
-pip install -r requirements.txt
+python HW2.py demo --output artifacts/demo
 ```
 
-## Running
+## Outputs
+
+| File | Purpose |
+|---|---|
+| `events.jsonl` | Per-frame cell motion and rotation evidence |
+| `intervals.json` | Per-second moving/not-moving decisions and dominant states |
+| `summary.json` | Input metadata, timings, configuration, and state counts |
+| `annotated.mp4` | Rectified grid next to a dense-flow visualization |
+| `preview.jpg` | Final annotated frame |
+
+Example cell event:
+
+```json
+{
+  "cell_id": 1,
+  "state": "rotating_clockwise",
+  "moving": true,
+  "mean_magnitude": 1.42,
+  "active_pixel_fraction": 0.31,
+  "translation_magnitude": 0.08,
+  "mean_tangential_velocity": 1.17,
+  "tangential_coherence": 0.82,
+  "evidence": {
+    "decision_rule": "coherent_tangential_flow",
+    "pixel_motion_threshold": 0.35,
+    "rotation_velocity_threshold": 0.18
+  }
+}
+```
+
+See [Architecture](docs/architecture.md), [JSON contract](docs/json-contract.md),
+[Evaluation](docs/evaluation.md), and [Legacy migration](docs/legacy-migration.md).
+
+## Configuration
 
 ```bash
-python HW2.py
+cp config.example.json my-grid.json
+grid-motion analyze \
+  --input test1.mp4 \
+  --output artifacts/test1 \
+  --config my-grid.json \
+  --max-frames 900
 ```
 
-The current script selects the input through the `file_index` variable inside `main()`:
+To retain the original assignment's physical robot numbering, use:
 
-```python
-file_index = 1
+```json
+{"cell_ids": [7, 1, 4, 8, 2, 5, 9, 3, 6]}
 ```
 
-For example, index `1` selects `test1.mp4` and, when present, `referans1.txt`.
+Unknown keys, duplicate cell IDs, and invalid thresholds fail before processing.
 
-## Main configuration
+## Development
 
-Important thresholds are intentionally exposed near the beginning of `HW2.py`:
-
-```python
-drop_wait_seconds = 1.1
-move_threshold = 0.35
-flow_mag_thresh = 0.017
-debug_mode = False
+```bash
+pip install -e ".[dev]"
+ruff check .
+pytest
+grid-motion demo --output artifacts/smoke --frames 16 --no-video
 ```
-
-They control the delay after the detected drop, motion classification, per-cell optical-flow sensitivity, and visual/debug behaviour.
-
-Additional thresholds inside the drop detector determine when the initial large-motion event starts and ends.
-
-## Perspective rectification
-
-At the detected drop frame, the code computes a Harris corner response and uses extreme combinations of the detected coordinates to approximate the top-left, top-right, bottom-right and bottom-left corners.
-
-A homography maps these points to a rectangular destination image. Subsequent analysis is performed in this rectified coordinate system so that the surface can be divided consistently into nine cells.
-
-The cell IDs follow the assignment-specific arrangement:
-
-```text
-7  1  4
-8  2  5
-9  3  6
-```
-
-## Motion detection
-
-Dense optical flow is computed between consecutive rectified grayscale frames. Each grid cell is evaluated independently from its local flow field.
-
-The implementation records quantities such as mean flow magnitude and the number of pixels exceeding the configured magnitude threshold. This makes the detector easier to inspect than a single black-box classification result.
-
-## Rover / blob detection
-
-The rectified grayscale frame is quantised and very dark regions are isolated. Morphological closing reduces fragmentation, and contours above a minimum size are converted into bounding boxes.
-
-These detections are visualised alongside the grid-level motion estimates.
-
-## Reference data
-
-If a matching `referans{index}.txt` file exists, the program reads reference values and overlays them on the corresponding cells. This provides a convenient visual comparison between predicted motion states and supplied ground truth.
-
-The reference file is optional; the motion pipeline can operate without it.
 
 ## Limitations
 
-The method is deliberately handcrafted and tuned to the assignment footage:
+- Automatic board detection expects a large, high-contrast planar region.
+- Dense optical flow is sensitive to blur, flicker, shadows, and camera motion.
+- Rotation direction is inferred from image-plane flow, not physical angular velocity.
+- The first processed frame is a warm-up frame with no flow decision.
+- Deployment thresholds require representative labeled recordings and a fixed camera.
 
-- homography estimation assumes the relevant surface can be inferred from strong corner responses;
-- fixed optical-flow thresholds are sensitive to camera motion, resolution and frame rate;
-- dark-object detection assumes useful intensity separation from the background;
-- the 3×3 geometry and cell numbering are task-specific;
-- abrupt illumination changes can appear as motion;
-- Farnebäck flow is computationally more expensive than simple frame differencing;
-- configuration is currently performed in the source rather than through CLI arguments.
+## License
 
-## Possible extensions
-
-Natural improvements would include automatic dataset discovery, command-line arguments, quantitative accuracy metrics, more robust corner estimation, camera-motion compensation, and unit tests for the temporal aggregation logic.
-
-## Why this project is useful
-
-Unlike a model that simply returns a label, this project exposes the full motion-analysis pipeline: event detection, optical-flow estimation, geometric rectification, spatial reasoning, blob detection, temporal aggregation and optional ground-truth comparison. It is a compact demonstration of classical video-analysis techniques implemented directly with NumPy and OpenCV.
+MIT
